@@ -2,6 +2,7 @@ import os
 import math
 import csv
 import datetime
+import pytz
 import codecs
 import urllib
 import urllib2
@@ -18,11 +19,12 @@ def collectArticles(ticker):
 	artData = []
 
 	#already on file (no need to recall diffbot):
-	if os.path.isfile("data/{}_article_text.csv".format(ticker)):
-		f = open("data/{}_article_text.csv".format(ticker), "rb")
+	#DEBUG CHANGE FOLLOWING LINE
+	if os.path.isfile("data/{}_article_text - Copy.csv".format(ticker)): #DEBUG
+		f = open("data/{}_article_text - Copy.csv".format(ticker), "rb")
 		reader = csv.reader(f)
 		for line in reader:
-			dt = datetime.datetime.strptime(line[0], "%Y-%m-%d %H:%M:%S")
+			dt = datetime.datetime.strptime(line[0], "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.utc)
 			title = line[1]
 			link = line[2]
 			text = line[3]
@@ -60,11 +62,13 @@ def collectArticles(ticker):
 					text = codecs.encode(text, "translit/long/ascii")
 				except:
 					text = text.encode("ascii", "ignore")
-				print(text)
-				newLine = [dt, title, link, text]
-				artData.append(newLine)
-				writeLine = [dt.strftime("%Y-%m-%d %H:%M:%S"), title, link, text]
-				writer.writerow(writeLine)
+				if not text: #if empty body text, skip
+					continue
+				else:
+					newLine = [dt, title, link, text]
+					artData.append(newLine)
+					writeLine = [dt.strftime("%Y-%m-%d %H:%M:%S"), title, link, text]
+					writer.writerow(writeLine)
 
 			except:
 				print("Error has occurred.")

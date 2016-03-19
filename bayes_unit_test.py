@@ -5,20 +5,20 @@ my_bayes = mnb("test.db")
 
 #If no db, uncomment and run once, then recomment (so nums are not duplicated).
 
-# my_bayes.train("Abracadabra", [
-# ["super", "awesome", "mega"],
-# ["a", "a", "a", "a"],
-# ["a", "b", "c"]])
+my_bayes.train("Abracadabra", [
+["super", "awesome", "mega"],
+["a", "a", "a", "a"],
+["a", "b", "c"]])
 
-# my_bayes.train("Battery", [
-# ["sad", "sad", "negative"],
-# ["my", "apple", "is", "red"],
-# ["my", "my", "my", "what", "teeth", "you", "awesome"]])
+my_bayes.train("Battery", [
+["sad", "sad", "negative"],
+["my", "apple", "is", "red"],
+["my", "my", "my", "what", "teeth", "you", "awesome"]])
 
-# my_bayes.train("Jesus", [
-# ["sad", "sad", "negative"],
-# ["my", "apple", "is", "red"],
-# ["my", "my", "my", "what", "teeth", "you", "awesome"]])
+my_bayes.train("Jesus", [
+["sad", "sad", "negative"],
+["my", "apple", "is", "red"],
+["my", "my", "my", "what", "teeth", "you", "awesome"]])
 
 class test(unittest2.TestCase):
 
@@ -55,23 +55,23 @@ class test(unittest2.TestCase):
 	def test1Word(self):
 		results = my_bayes.classify(["awesome"])
 		print(results)
-		self.failUnless(results[0][1] > results[1][1])
+		self.failUnless(results["Abracadabra"] > results["Battery"])
 
 	def test1WordRepeat(self):
 		results = my_bayes.classify(["awesome", "awesome", "awesome", "awesome"])
 		print(results)
-		self.failUnless(results[0][1] > results[1][1])
+		self.failUnless(results["Abracadabra"] > results["Battery"])
 
 	def test1WordRepeat2(self):
 		results = my_bayes.classify(["my"])
 		print(results)
-		self.failUnless(results[1][1] > results[0][1])
+		self.failUnless(results["Battery"] > results["Abracadabra"])
 
 
 	def testEqualClasses(self):
 		results = my_bayes.classify(["my"])
 		print(results)
-		self.failUnlessAlmostEqual(results[1][1], results[2][1])
+		self.failUnlessAlmostEqual(results["Battery"], results["Jesus"])
 
 
 

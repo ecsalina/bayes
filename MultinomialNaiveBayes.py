@@ -12,15 +12,12 @@ class MultinomialNaiveBayes():
 
 	#CONSTRUCTORS:
 
-	def __init__(self, db_name):
+	def __init__(self, db_name, classes=[]):
 		self.conn = sqlite3.connect(db_name)
 		self.isSetup = False
-
-	def __init__(self, db_name, classes):
-		self.conn = sqlite3.connect(db_name)
-		self.isSetup = False
-		for clas in classes:
-			self._setup_db(clas)
+		if len(classes) > 0:
+			for clas in classes:
+				self._setup_db(clas)
 
 	#AUX METHODS
 
@@ -29,9 +26,9 @@ class MultinomialNaiveBayes():
 		self.conn.execute("CREATE TABLE IF NOT EXISTS {} (term text, count number);".format(clas))
 		#Table for holding the num of docs of each class.
 		self.conn.execute("CREATE TABLE IF NOT EXISTS doc_nums (class text, count number);")
-		#Add class to doc_nums of not in it
+		#Add class to doc_nums if not already in it.
 		self.conn.execute("INSERT INTO doc_nums(class, count) SELECT ?, 0 WHERE NOT EXISTS(SELECT 1 FROM doc_nums WHERE class = ?);", (clas, clas))
-		self.conn.commit()
+		self.conn.commit()	
 		self.isSetup = True
 
 	#METHODS
@@ -153,7 +150,7 @@ class MultinomialNaiveBayes():
 				#DEBUG print("total words in class: "+str(total_words))
 
 				#num unique words in class
-				cur.execute("SELECT COUNT(*) FROM {}".format(clas))
+				cur.execute("SELECT COUNT(DISTINCT term) FROM {}".format(clas))
 				vocab_size = cur.fetchone()
 				vocab_size = float(vocab_size[0]) if vocab_size != None else 0.0
 				#DEBUG print("vocab size: "+str(vocab_size))

@@ -1,6 +1,7 @@
 import math
 import csv
 import datetime
+import pytz
 import codecs
 import urllib
 import urllib2
@@ -33,7 +34,7 @@ NOTES:
 	5. change discrete +-neutral to continuous prediction of actual stock
 	return values.
 	6. negative more effect than positive?
-	7. less important articles have effet later from now. More important more
+	7. less important articles have effect later from now. More important more
 	immediate?
 	8. google trends to weight the amount of the return (on same day works well,
 	but what about prediction for next day? more specific than day granularity?)
@@ -42,7 +43,7 @@ To backtest:
 	1. for each day, before open, make a prediction of the return with the docs
 	from the past day.
 	2. buy/sell/nothing based on prediction. Hold for one day.
-	3. At next open, reverse action. Also, update db with the actuall occurance
+	3. At next open, reverse action. Also, update db with the actual occurance
 	of the past day (positive/negative/neutral returns)
 """
 
@@ -53,7 +54,7 @@ def _dayIter(start, end, delta):
 	"""
 	current = start
 	while current < end:
-		yield current
+		yield current.replace(tzinfo=pytz.utc)
 		current += delta
 
 def _getWords(body):
@@ -79,8 +80,9 @@ tickers = ["MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD",
 			 "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"]
 tickers = ["AAPL"]
 
-start = datetime.datetime(2015, 12, 22, 9, 30, 0)
-end = datetime.datetime(2015, 12, 29, 9, 30, 0)
+EST = pytz.timezone("US/Eastern")
+start = datetime.datetime(2015, 12, 21, 9, 30, 0).replace(tzinfo=EST).astimezone(pytz.utc)
+end = datetime.datetime(2016, 3, 01, 9, 30, 0).replace(tzinfo=EST).astimezone(pytz.utc)
 
 MIN_POS = 0.01
 MAX_NEG = -0.01
@@ -106,7 +108,8 @@ for ticker in tickers:
 	for stock in stocks:
 		stock["Adj_Close"] = float(stock["Adj_Close"])
 		stock["Close"] = float(stock["Close"])
-		stock["Date"] = datetime.datetime.strptime(stock["Date"], "%Y-%m-%d").replace(hour=9, minute=30, second=0)
+		stock["Date"] = datetime.datetime.strptime(stock["Date"], "%Y-%m-%d"
+			).replace(hour=9, minute=30, second=0).replace(tzinfo=EST).astimezone(pytz.utc)
 		stock["High"] = float(stock["High"])
 		stock["Low"] = float(stock["Low"])
 		stock["Open"] = float(stock["Open"])
@@ -116,7 +119,7 @@ for ticker in tickers:
 	#group by day and add to tickerData, where day: [open, open)
 	#articles assigned to date of the BEGINNING of the collection period
 	for day in _dayIter(start, end, datetime.timedelta(days=1)):
-		nextDay = day + datetime.timedelta(days=1)
+		nextDay = (day + datetime.timedelta(days=1)).replace(tzinfo=pytz.utc)
 		for art in arts:
 			if day <= art[0] < nextDay:
 				date = art[0]
@@ -134,7 +137,7 @@ def train(data, bayes, start, end):
 	Setup the classifier with some beginning data.
 	"""
 	print("Training classifier:")
-	for day in _dayIter(start, datetime.datetime(2015, 12, 24, 9, 30, 0), datetime.timedelta(days=1)):
+	for day in _dayIter(start, end, datetime.timedelta(days=1)):
 		try:
 			prevArts = data[day - datetime.timedelta(days=1)]["arts"]
 			currPrice = data[day]["prices"]["Open"]
@@ -151,7 +154,7 @@ def train(data, bayes, start, end):
 			print("    class: "+clas)
 			bayes.train(clas, zip(*prevArts)[3])
 		except KeyError:
-			print "key error somewhere"
+			print "No stock data or article data today."
 
 
 def backtest(data, bayes, start, end):
@@ -164,7 +167,7 @@ def backtest(data, bayes, start, end):
 	:param end: datetime for end of backtest
 	"""
 	print("Testing classifier: ")
-	profit = 0.0
+	totProfit = 0.0
 	for day in _dayIter(start, end, datetime.timedelta(days=1)):
 		print(day)
 		try:
@@ -183,17 +186,22 @@ def backtest(data, bayes, start, end):
 				predic["NEG"] += results["NEG"]
 				predic["NEUT"] += results["NEUT"]
 
+			print(predic)
 			#2. Buy/sell/nothing based on prediction.
+			currProfit = 0.0
 			if predic["POS"] > predic ["NEG"]  and predic["POS"] > predic["NEUT"]:
 				print("    BUY")
-				profit += (-currPrice + nextPrice)
+				currProfit += (-currPrice + nextPrice)
+				totProfit += currProfit
 			elif predic["NEG"] > predic ["POS"]  and predic["NEG"] > predic["NEUT"]:
 				print("    SELL")
-				profit += (+currPrice - nextPrice)
+				currProfit += (+currPrice - nextPrice)
+				totProfit += currProfit
 			if predic["NEUT"] > predic ["POS"]  and predic["NEUT"] > predic["NEG"]:
 				print("    NOTHING")
 				pass
-			print("profit: "+str(profit))
+			print("profit: "+str(currProfit))
+			print("total profit: "+str(totProfit))
 
 			#3. Update Bayesian classifier.
 			returns = math.log(nextPrice / currPrice)
@@ -210,5 +218,5 @@ def backtest(data, bayes, start, end):
 
 
 bayes = mnb("backtest.db", ["POS", "NEG", "NEUT"])
-train(tickerData[ticker], bayes, start, datetime.datetime(2015, 12, 24, 9, 30, 0))
-backtest(tickerData[ticker], bayes, datetime.datetime(2015, 12, 22, 9, 30, 0), end)
+train(tickerData[ticker], bayes, start, datetime.datetime(2016, 01, 14, 9, 30, 0).replace(tzinfo=EST).astimezone(pytz.utc))
+backtest(tickerData[ticker], bayes, start, end)
